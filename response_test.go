@@ -525,6 +525,138 @@ func TestMarshalISO8601TimePointer(t *testing.T) {
 	}
 }
 
+func TestMarshalPointerCompound(t *testing.T) {
+	id := "123e4567-e89b-12d3-a456-426655440000"
+	compound := &Compound{
+		ID:      id,
+		PNested: &Nested{Value: "pointer"},
+	}
+
+	out := bytes.NewBuffer(nil)
+	if err := MarshalPayload(out, compound); err != nil {
+		t.Fatal(err)
+	}
+
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &jsonData); err != nil {
+		t.Fatal(err)
+	}
+
+	data := jsonData["data"].(map[string]interface{})
+	attributes := data["attributes"].(map[string]interface{})
+
+	// Verify that the nested key was sent
+	nested, exists := attributes["pointer_nested"].(map[string]interface{})
+	if !exists {
+		t.Fatal("Was expecting the data.attributes.pointer_nested member to exist")
+	}
+
+	if len(nested) != 1 {
+		t.Fatalf("Was expecting data.attributes.pointer_nested member to have `%d` keys, got `%d`", 1, len(nested))
+	}
+
+	val, exists := nested["value"].(string)
+	if !exists {
+		t.Fatal("Was expecting the value key to exist")
+	}
+
+	if val != "pointer" {
+		t.Fatalf("Was expecting the value to equal `%s`, got `%s`", "pointer", val)
+	}
+
+}
+
+func TestMarshalSlicePointerCompound(t *testing.T) {
+	id := "123e4567-e89b-12d3-a456-426655440000"
+	compound := &Compound{
+		ID:       id,
+		SPNested: []*Nested{{Value: "slice_pointer"}},
+	}
+
+	out := bytes.NewBuffer(nil)
+	if err := MarshalPayload(out, compound); err != nil {
+		t.Fatal(err)
+	}
+
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &jsonData); err != nil {
+		t.Fatal(err)
+	}
+
+	data := jsonData["data"].(map[string]interface{})
+	attributes := data["attributes"].(map[string]interface{})
+
+	nested, exists := attributes["slice_pointer_nested"].([]interface{})
+	if !exists {
+		t.Fatal("Was expecting the data.attributes.slice_pointer_nested to exist")
+	}
+
+	if len(nested) != 1 {
+		t.Fatalf("Was expecting data.attributes.slice_pointer_nested to have length of `%d`, got `%d`", 1, len(nested))
+	}
+
+	first, ok := nested[0].(map[string]interface{})
+	if !ok {
+		t.Fatal("Was expecting slice_pointer_nested element to be a map")
+	}
+
+	if len(first) != 1 {
+		t.Fatalf("Was expecting the slice_pointer_nested element to have `%d` keys, got `%d`", 1, len(first))
+	}
+
+	val, exists := first["value"].(string)
+	if !exists {
+		t.Fatal("Was expecting value to exist")
+	}
+	if val != "slice_pointer" {
+		t.Fatalf("Was expecting value to equal `%s`, got `%s`", "slice_pointer", val)
+	}
+}
+
+func TestMarshalEmptyCompound(t *testing.T) {
+	id := "123e4567-e89b-12d3-a456-426655440000"
+	compound := &Compound{
+		ID: id,
+	}
+
+	out := bytes.NewBuffer(nil)
+	if err := MarshalPayload(out, compound); err != nil {
+		t.Fatal(err)
+	}
+
+	var jsonData map[string]interface{}
+	if err := json.Unmarshal(out.Bytes(), &jsonData); err != nil {
+		t.Fatal(err)
+	}
+
+	data := jsonData["data"].(map[string]interface{})
+	attributes := data["attributes"].(map[string]interface{})
+
+	if len(attributes) != 2 {
+		t.Fatalf("Was expecting attributes map to have `%d` keys, got `%d`", 2, len(attributes))
+	}
+
+	_, exists := attributes["pointer_nested"]
+	if !exists {
+		t.Fatal("Was expecting pointer_nested attribute key to exist as not marked with omitempty")
+	}
+
+	_, exists = attributes["slice_pointer_nested"]
+	if !exists {
+		t.Fatal("Was expecting slice_pointer_nested to exist as not marked with omitempty")
+	}
+
+	_, exists = attributes["pointer_nested_empty"]
+	if exists {
+		t.Fatal("Was expecting pinter_nested_empty not to exist as marked with omitempty")
+	}
+
+	_, exists = attributes["slice_pointer_nested_omitemty"]
+	if exists {
+		t.Fatal("Was expecting slice_pointer_nested_omitempty not to exist as marked with omitempty")
+	}
+}
+
 func TestSupportsLinkable(t *testing.T) {
 	testModel := &Blog{
 		ID:        5,

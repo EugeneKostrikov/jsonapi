@@ -232,7 +232,7 @@ func unmarshalNode(data *Node, model reflect.Value, included *map[string]*Node) 
 			}
 
 			fieldValue.Set(reflect.ValueOf(data.ClientID))
-		} else if annotation == annotationAttribute {
+		} else if annotation == annotationAttribute || annotation == annotationCompound {
 			attributes := data.Attributes
 
 			if attributes == nil || len(data.Attributes) == 0 {
@@ -409,7 +409,12 @@ func unmarshalAttribute(
 	// Handle field containing slice of structs
 	if fieldValue.Type().Kind() == reflect.Slice &&
 		reflect.TypeOf(fieldValue.Interface()).Elem().Kind() == reflect.Struct {
-		value, err = handleStructSlice(attribute, fieldValue)
+		value, err = handleStructSlice(attribute, fieldValue, false)
+		return
+	}
+	if fieldValue.Type().Kind() == reflect.Slice &&
+		reflect.TypeOf(fieldValue.Interface()).Elem().Kind() == reflect.Ptr {
+		value, err = handleStructSlice(attribute, fieldValue, true)
 		return
 	}
 
@@ -618,7 +623,9 @@ func handleStruct(
 
 func handleStructSlice(
 	attribute interface{},
-	fieldValue reflect.Value) (reflect.Value, error) {
+	fieldValue reflect.Value,
+	asPointer bool,
+) (reflect.Value, error) {
 	models := reflect.New(fieldValue.Type()).Elem()
 	dataMap := reflect.ValueOf(attribute).Interface().([]interface{})
 	for _, data := range dataMap {
@@ -630,7 +637,11 @@ func handleStructSlice(
 			continue
 		}
 
-		models = reflect.Append(models, reflect.Indirect(value))
+		if asPointer {
+			models = reflect.Append(models, value)
+		} else {
+			models = reflect.Append(models, reflect.Indirect(value))
+		}
 	}
 
 	return models, nil

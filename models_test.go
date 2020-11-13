@@ -31,6 +31,18 @@ type Timestamp struct {
 	Next *time.Time `jsonapi:"attr,next,iso8601"`
 }
 
+type Compound struct {
+	ID        string    `jsonapi:"primary,compound"`
+	PNested   *Nested   `jsonapi:"compound,pointer_nested"`
+	SPNested  []*Nested `jsonapi:"compound,slice_pointer_nested"`
+	EPNested  *Nested   `jsonapi:"compound,pointer_nested_empty,omitempty"`
+	ESPNested []*Nested `jsonapi:"compound,slice_pointer_nested_empty,omitempty"`
+}
+
+type Nested struct {
+	Value string `jsonapi:"attr,value"`
+}
+
 type Car struct {
 	ID    *string `jsonapi:"primary,cars"`
 	Make  *string `jsonapi:"attr,make,omitempty"`

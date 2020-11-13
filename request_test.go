@@ -404,6 +404,47 @@ func TestUnmarshalInvalidISO8601(t *testing.T) {
 	}
 }
 
+func TestUnmarshalPointerCompound(t *testing.T) {
+	payload := &OnePayload{
+		Data: &Node{
+			Type: "compound",
+			Attributes: map[string]interface{}{
+				"pointer_nested": map[string]interface{}{
+					"value": "pointer",
+				},
+				"slice_pointer_nested": []map[string]interface{}{
+					{"value": "slice pointer"},
+				},
+			},
+		},
+	}
+
+	in := bytes.NewBuffer(nil)
+	json.NewEncoder(in).Encode(payload)
+
+	out := new(Compound)
+
+	err := UnmarshalPayload(in, out)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if out.PNested == nil {
+		t.Fatal("Was expecting top key PNested to exist")
+	} else if out.PNested.Value != "pointer" {
+		t.Fatalf("Was expecting PNested.Value to be `%s`, got `%s`", "pointer", out.PNested.Value)
+	}
+
+	if out.SPNested == nil {
+		t.Fatal("Was expecting top key SPNested to exist")
+	} else if len(out.SPNested) != 1 {
+		t.Fatalf("Was expecting SPNested length to be `%d`, got `%d`", 1, len(out.SPNested))
+	} else if out.SPNested[0].Value != "slice pointer" {
+		t.Fatalf("Was expecting first SPNested element to have Value of `%s`, got `%s`", "slice pointer", out.SPNested[0].Value)
+	}
+
+}
+
 func TestUnmarshalRelationshipsWithoutIncluded(t *testing.T) {
 	data, err := json.Marshal(samplePayloadWithoutIncluded())
 	if err != nil {

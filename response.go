@@ -349,6 +349,59 @@ func visitModelNode(model interface{}, included *map[string]*Node,
 					node.Attributes[args[1]] = fieldValue.Interface()
 				}
 			}
+		} else if annotation == annotationCompound {
+			var omitEmpty bool
+			if len(args) > 2 {
+				for _, arg := range args[2:] {
+					switch arg {
+					case annotationOmitEmpty:
+						omitEmpty = true
+					}
+				}
+			}
+
+			if node.Attributes == nil {
+				node.Attributes = make(map[string]interface{})
+			}
+
+			emptyValue := reflect.Zero(fieldValue.Type())
+			if omitEmpty && reflect.DeepEqual(fieldValue.Interface(), emptyValue.Interface()) {
+				continue
+			}
+
+			switch fieldValue.Kind() {
+			case reflect.Ptr:
+				subNode, err := visitModelNode(fieldValue.Interface(), included, sideload)
+				if err != nil {
+					er = err
+					break
+				}
+				if subNode != nil && subNode.Attributes != nil {
+					node.Attributes[args[1]] = subNode.Attributes
+				} else if !omitEmpty {
+					node.Attributes[args[1]] = nil
+				}
+
+			case reflect.Slice:
+				subAttrs := make([]map[string]interface{}, 0)
+
+				for i := 0; i < fieldValue.Len(); i++ {
+					n := fieldValue.Index(i).Interface()
+
+					subNode, err := visitModelNode(n, included, sideload)
+					if err != nil { //break the inner loop
+						er = err
+						break
+					}
+
+					subAttrs = append(subAttrs, subNode.Attributes)
+				}
+				if er != nil { //break the outer loop
+					break
+				}
+
+				node.Attributes[args[1]] = subAttrs
+			}
 		} else if annotation == annotationRelation {
 			var omitEmpty bool
 
